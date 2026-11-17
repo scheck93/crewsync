@@ -1,0 +1,9 @@
+# CrewSync uses only the Python 3.9+ standard library — no pip installs needed.
+#
+# The one caveat: zoneinfo (used for America/New_York) needs the system
+# tz database. On most Linux/macOS it's already present. On minimal/Windows
+# environments where you hit "No time zone found", install the fallback:
+#
+#   pip install tzdata
+#
+# tzdata  # uncomment only if you see a ZoneInfoNotFoundError

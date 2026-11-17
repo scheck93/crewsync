@@ -1,0 +1,21 @@
+{
+  "client_name": "David's Cozy Cabin",
+  "sms_title": "David's Cozy Cabin Schedule Update",
+  "signature": "— David",
+  "timezone": "America/New_York",
+  "feeds": [
+    { "source": "VRBO",   "url": "https://www.vrbo.com/icalendar/f371fbc10b624ec88a38cc413674edf5.ics?nonTentative" },
+    { "source": "AIRBNB", "url": "https://www.airbnb.com/calendar/ical/622547415949845045.ics?t=8b635dd3610543cfac834cefe0c37cce" }
+  ],
+  "twilio": {
+    "account_sid": "AC5fd3b1c707e79ece14f212be5b5ed498",
+    "from_number": "+18509883328",
+    "_auth_token_note": "Set via TWILIO_AUTH_TOKEN env var (see .env). Do NOT hardcode here."
+  },
+  "owner_number": "+18632531184",
+  "operator_number": null,
+  "notification_recipients": ["+15182918802", "+15187550154", "+18632531184"],
+  "far_future_block_days": 180,
+  "suspicious_cancel_min": 3,
+  "suspicious_cancel_pct": 0.30
+}
