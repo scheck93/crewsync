@@ -218,8 +218,8 @@ TEMPLATE = r"""<!DOCTYPE html>
     <span><i style="background:var(--amber)"></i>Quick flip (same-day turnover)</span>
   </div>
 
-  <h3>Upcoming cleanings</h3>
-  <ul class="list" id="cleanings"></ul>
+  <h3>All bookings</h3>
+  <ul class="list" id="bookings"></ul>
 
   <footer>Updated automatically from the Airbnb and VRBO calendars.</footer>
 </main>
@@ -293,15 +293,15 @@ document.getElementById("next").onclick = () => go(1);
 document.getElementById("today").onclick = () => { view = new Date(today.getFullYear(), today.getMonth(), 1); render(); };
 render();
 
-const items = real.slice().sort((x, y) => x.e - y.e).map(b => {
-  const next = real.filter(n => n.s >= b.e).sort((x, y) => x.s - y.s)[0];
-  let meta = esc(name(b)) + " (" + (b.source === "VRBO" ? "VRBO" : "Airbnb") + ") checks out.";
-  if (next && sameDay(next.s, b.e)) meta += ' <span class="tag">QUICK FLIP</span> next guest arrives the same day.';
-  else if (next) meta += " Next guest arrives " + fmt(next.s) + ".";
-  else meta += " No next booking yet.";
-  return '<li><div class="main">' + fmt(b.e) + (sameDay(b.e, today) ? " (today)" : "") + '</div><div class="meta">' + meta + '</div></li>';
+const items = bookings.map(b => {
+  const n = diff(b.s, b.e);
+  const src = b.block ? "Host block" : (b.source === "VRBO" ? "VRBO" : "Airbnb");
+  let meta = b.block ? "Owner/host hold" : src + " \u00b7 " + n + " night" + (n === 1 ? "" : "s");
+  if (b.s <= today && today < b.e) meta += " \u00b7 in-house now";
+  if (!b.block && real.some(o => o !== b && sameDay(o.s, b.e))) meta += ' <span class="tag">QUICK FLIP</span> on checkout';
+  return '<li><div class="main">' + fmt(b.s) + " to " + fmt(b.e) + " \u00b7 " + esc(name(b)) + '</div><div class="meta">' + meta + '</div></li>';
 });
-document.getElementById("cleanings").innerHTML = items.join("") || '<li class="meta">No upcoming cleanings.</li>';
+document.getElementById("bookings").innerHTML = items.join("") || '<li class="meta">No upcoming bookings.</li>';
 </script>
 </body>
 </html>
