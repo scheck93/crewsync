@@ -1,0 +1,90 @@
+name: CrewSync
+
+on:
+  schedule:
+    # Every 30 minutes (UTC). GitHub may start scheduled runs a few minutes late.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (print texts, send nothing, save nothing)"
+        type: boolean
+        default: false
+      init_snapshot:
+        description: "Reset snapshot to the current calendars (send nothing). Use once before going live."
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "build_site.py"
+      - "crewsync.py"
+      - "clients/**"
+      - ".github/workflows/crewsync.yml"
+
+permissions:
+  contents: write   # commit updated snapshots
+  pages: write      # deploy the calendar site
+  id-token: write   # required by deploy-pages
+
+concurrency:
+  group: crewsync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check calendars and text the crew
+        # Only on the schedule or a manual run; a code push just redeploys the site.
+        if: github.event_name != 'push'
+        env:
+          CREWSYNC_PRIVATE: ${{ secrets.CREWSYNC_PRIVATE }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+        run: |
+          if [ "${{ inputs.init_snapshot }}" = "true" ]; then
+            python3 run_all.py --init-snapshot
+          elif [ "${{ inputs.dry_run }}" = "true" ]; then
+            python3 run_all.py --dry-run
+          else
+            python3 run_all.py
+          fi
+
+      - name: Save updated snapshots
+        id: save
+        run: |
+          git config user.name "crewsync-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          changed=false
+          if [ -n "$(git status --porcelain clients)" ]; then
+            git add clients
+            git commit -m "Update booking snapshots"
+            changed=true
+          elif [ $(( $(date +%s) - $(git log -1 --format=%ct) )) -gt $(( 45 * 86400 )) ]; then
+            # GitHub pauses scheduled workflows in public repos after 60 days
+            # without a commit. Keep it alive during quiet booking stretches.
+            date -u +%FT%TZ > .github/keepalive
+            git add .github/keepalive
+            git commit -m "Keep scheduled sync alive"
+          fi
+          git push
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Build site
+        if: steps.save.outputs.changed == 'true' || github.event_name != 'schedule'
+        run: python3 build_site.py --out _site
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.save.outputs.changed == 'true' || github.event_name != 'schedule'
+        with:
+          path: _site
+
+      - id: deploy
+        if: steps.save.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/deploy-pages@v4

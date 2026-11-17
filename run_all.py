@@ -4,6 +4,7 @@
 Usage:
     python3 run_all.py            # real run for all clients
     python3 run_all.py --dry-run  # dry-run all clients
+    python3 run_all.py --init-snapshot  # save current state, send nothing
 """
 import os
 import sys
@@ -11,7 +12,7 @@ import glob
 import subprocess
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-dry = "--dry-run" in sys.argv
+flags = [a for a in sys.argv[1:] if a in ("--dry-run", "--init-snapshot")]
 configs = sorted(glob.glob(os.path.join(HERE, "clients", "*", "config.json")))
 
 if not configs:
@@ -23,8 +24,7 @@ for cfg in configs:
     name = os.path.basename(os.path.dirname(cfg))
     print(f"\n===== {name} =====")
     cmd = [sys.executable, os.path.join(HERE, "crewsync.py"), cfg]
-    if dry:
-        cmd.append("--dry-run")
+    cmd += flags
     rc = subprocess.run(cmd).returncode
     overall_rc = overall_rc or rc
 

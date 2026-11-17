@@ -23,12 +23,11 @@ You can also pass raw E.164 numbers, e.g. --to "+15551234567,owner".
 """
 import os
 import sys
-import json
 import argparse
 
 # Reuse the Twilio sender from the engine
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from crewsync import send_sms  # noqa: E402
+from crewsync import send_sms, load_config  # noqa: E402
 
 
 def resolve_recipients(cfg, spec):
@@ -74,8 +73,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="print, don't send")
     args = ap.parse_args()
 
-    with open(args.config) as f:
-        cfg = json.load(f)
+    cfg = load_config(args.config)
 
     body = args.body if args.body is not None else open(args.body_file).read().rstrip("\n")
     recipients = resolve_recipients(cfg, args.to)

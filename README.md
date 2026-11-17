@@ -1,13 +1,32 @@
 # CrewSync
 
-Automated short-term-rental schedule notifier. Polls each client's Airbnb/VRBO
-iCal feeds a few times a day, diffs against a saved snapshot, and texts the
-crew (cleaner/handyman/co-host) via Twilio **only when something changes** —
-new booking, cancellation, or date change. Silent on quiet runs.
+Automated short-term-rental schedule notifier. Every 30 minutes it checks a
+property's Airbnb/VRBO calendar feeds, compares them with the last saved
+state, and — **only when something changed** — texts the crew (cleaner,
+handyman, co-host) a short note with a link to a live calendar page.
 
-This is the standalone version of the system originally built in Claude Cowork,
-ported to plain Python so it can run anywhere (a laptop, a VPS, a Raspberry Pi,
-a cron box) with no Claude/Cowork runtime.
+Everything runs for free on GitHub: **GitHub Actions** does the checking and
+texting, **GitHub Pages** hosts the calendar. No laptop or server needed.
+
+---
+
+## What the crew gets
+
+A short text:
+
+```
+David's Cozy Cabin schedule changed: cancelled Fri 11/20 to Sun 11/22; new booking Thu 12/3 to Mon 12/7.
+
+See the updated calendar: https://scheck93.github.io/crewsync/david/
+
+Please text David to confirm you can cover the new schedule.
+- David
+```
+
+The link opens a mobile-friendly calendar (no login) with Airbnb, VRBO and
+host-block nights color-coded, a list of upcoming cleanings (checkout days,
+with **QUICK FLIP** when the next guest arrives the same day) and all
+upcoming bookings. The owner gets a separate confirmation text.
 
 ---
 
@@ -15,89 +34,71 @@ a cron box) with no Claude/Cowork runtime.
 
 ```
 crewsync/
-├── crewsync.py            # the engine — runs one client's sync
-├── run_all.py             # runs every client under clients/
-├── send_message.py        # ad-hoc one-off sends (intros, trial reminders)
-├── run.sh                 # loads .env then runs the engine (used by cron)
+├── crewsync.py              # the engine — runs one client's sync
+├── run_all.py               # runs every client under clients/
+├── build_site.py            # builds the GitHub Pages site into _site/
+├── send_message.py          # ad-hoc one-off sends (intros, announcements)
+├── run.sh                   # local helper: loads .env, runs the engine
 ├── clients/
 │   └── david-cozy-cabin/
-│       ├── config.json    # feeds, recipients, Twilio account, options
-│       └── snapshot.txt   # last-known booking state (auto-managed)
-├── crontab.example        # schedule entries (8 AM / 6 PM / 9 PM ET)
-├── .env.example           # template for the Twilio secret
-├── .env                   # real Twilio token (gitignored — don't commit)
-├── .gitignore
-├── requirements.txt       # (stdlib only — see notes)
-├── logs/                  # cron output lands here
+│       ├── config.json      # PUBLIC settings (name, link, options)
+│       └── snapshot.txt     # last-known booking state (auto-managed)
+├── website/index.html       # landing page (site root)
+├── private.example.json     # template for the PRIVATE settings
+├── .github/workflows/crewsync.yml   # schedule + deploy
 └── README.md
 ```
 
----
+### Public vs private settings
 
-## Requirements
+This repo is public, so anything sensitive stays out of it:
 
-- **Python 3.9+** (uses `zoneinfo`). Nothing else — the engine is pure standard
-  library. No `pip install` needed in most environments.
-- On a minimal box that throws `ZoneInfoNotFoundError`, run `pip install tzdata`.
-- A **Twilio account** with an SMS-capable `from` number (already configured).
+| Where | What |
+|---|---|
+| `clients/<name>/config.json` (committed) | client name, owner first name, signature, timezone, calendar link, filter/guard options |
+| `CREWSYNC_PRIVATE` GitHub secret (or `private.json` locally, gitignored) | calendar feed URLs, phone numbers, Twilio account SID + from number |
+| `TWILIO_AUTH_TOKEN` GitHub secret (or `.env` locally, gitignored) | Twilio auth token |
 
-Check your version:
-
-```bash
-python3 --version   # need 3.9 or newer
-```
+`CREWSYNC_PRIVATE` is one JSON object keyed by client folder name — see
+`private.example.json`.
 
 ---
 
-## One-time setup
+## One-time setup on GitHub
 
-1. **Drop in the Twilio secret.** Copy the template and confirm the token:
+1. **Secrets** — repo *Settings → Secrets and variables → Actions → New
+   repository secret*:
+   - `TWILIO_AUTH_TOKEN` — the token from your local `.env`
+   - `CREWSYNC_PRIVATE` — the full contents of `private.json`
+2. **Pages** — *Settings → Pages → Build and deployment → Source:
+   GitHub Actions*.
+3. **Reset the snapshot** — *Actions → CrewSync → Run workflow*, tick
+   **"Reset snapshot"**. This saves the current calendars without texting
+   anyone, so the first real run doesn't announce every change since the
+   last time it ran. It also publishes the calendar page.
+4. Optional: run it again with **"Dry run"** ticked and read the log to see
+   what would be sent.
 
-   ```bash
-   cp .env.example .env      # then edit .env
-   ```
+From then on it runs every 30 minutes by itself. If a run fails (e.g. a
+calendar link was rotated), GitHub emails you.
 
-   `.env` already contains your existing token. It is listed in `.gitignore`
-   so it won't be committed. The engine reads `TWILIO_AUTH_TOKEN` from the
-   environment first, and only falls back to the config if the env var is
-   unset. **Keep the token out of `config.json` and out of git.**
-
-2. **Make the wrappers executable** (if not already):
-
-   ```bash
-   chmod +x run.sh
-   ```
-
-3. **Test without sending anything** (see "Dry run" below).
+> **Twilio + links:** US carriers filter texts with links unless your
+> Twilio A2P 10DLC campaign says messages include embedded links. If crew
+> texts stop arriving (Twilio error 30007), update the campaign in the
+> Twilio console.
 
 ---
 
-## Running it
+## Running locally (optional)
 
-### Dry run (recommended first)
-
-Computes the diff and prints exactly what *would* be sent, but sends no SMS
-and does not modify the snapshot:
+Python 3.9+, standard library only. Put the private settings in
+`private.json` and the token in `.env`, then:
 
 ```bash
-python3 crewsync.py clients/david-cozy-cabin/config.json --dry-run
-```
-
-### Real run, one client
-
-```bash
-# Token from your shell environment:
-TWILIO_AUTH_TOKEN=xxxxxxxx python3 crewsync.py clients/david-cozy-cabin/config.json
-
-# ...or let run.sh load it from .env:
-./run.sh clients/david-cozy-cabin/config.json
-```
-
-### All clients at once
-
-```bash
-python3 run_all.py            # real
-python3 run_all.py --dry-run  # preview
+python3 crewsync.py clients/david-cozy-cabin/config.json --dry-run   # preview, sends nothing
+./run.sh clients/david-cozy-cabin/config.json                        # real run
+python3 run_all.py --dry-run                                         # every client
+python3 build_site.py                                                # site -> ./_site
 ```
 
 A run prints one of:
@@ -110,120 +111,63 @@ A run prints one of:
 
 ---
 
-## Scheduling (cron)
-
-The cadence is **three checks per day**:
-
-- David's Cozy Cabin -> **8 AM, 6 PM, 9 PM ET**
-
-To replicate:
-
-1. Set the server timezone to Eastern (or convert the hours to your zone):
-
-   ```bash
-   sudo timedatectl set-timezone America/New_York
-   ```
-
-2. Edit `crontab.example` — replace `/ABSOLUTE/PATH/TO/crewsync` with the real
-   path — then install it:
-
-   ```bash
-   crontab crontab.example
-   crontab -l         # verify
-   ```
-
-Each cron line `cd`s into the project, runs `./run.sh <client>` (which loads
-`.env`), and appends output to `logs/<client>.log`.
-
-> Note: scheduled jobs only run when the machine is on. On a laptop that
-> sleeps, use an always-on host (VPS / Pi) for reliable delivery.
-
----
-
-## One-off messages (intros, trial reminders, announcements)
+## One-off messages
 
 `send_message.py` sends arbitrary text to a client's people without touching
-the sync logic.
+the sync logic (needs the private settings locally):
 
 ```bash
-# Welcome/intro text to the crew + owner:
-python3 send_message.py clients/david-cozy-cabin/config.json \
-  --to crew,owner --body-file intro.txt
-
-# Note to owner + operator only:
-python3 send_message.py clients/david-cozy-cabin/config.json \
-  --to owner,operator --body "Heads up — ..."
-
-# Always preview first:
+python3 send_message.py clients/david-cozy-cabin/config.json --to crew,owner --body-file intro.txt
 python3 send_message.py clients/david-cozy-cabin/config.json --to all --body "..." --dry-run
 ```
 
-`--to` accepts `crew`, `owner`, `operator`, `all`, and/or raw `+E164` numbers,
-comma-separated and de-duplicated.
-
-For a true one-shot at a future time (e.g. a reminder on a specific date), use `at` instead of cron so it fires exactly once, or just run
-`send_message.py` manually that day.
+`--to` accepts `crew`, `owner`, `operator`, `all`, and/or raw `+E164` numbers.
 
 ---
 
-## Configuring a client
+## Adding a client
 
-Each `clients/<name>/config.json`:
+1. Copy `clients/david-cozy-cabin/` to `clients/<new-name>/`, edit
+   `config.json` (new `site_slug` and `calendar_url`), and empty
+   `snapshot.txt`.
+2. Add a `"<new-name>": {...}` entry to the `CREWSYNC_PRIVATE` secret.
+3. Run the workflow once with **"Reset snapshot"**.
+
+### `config.json` fields
 
 ```jsonc
 {
-  "client_name": "David's Cozy Cabin",                 // used in confirmation + watchdog text
-  "sms_title": "David's Cozy Cabin Schedule Update",   // header line of the crew SMS
-  "signature": "— David",                              // last line of the crew SMS
-  "timezone": "America/New_York",                   // property's local zone ("today" basis)
-  "feeds": [                                         // one or more iCal feeds
-    { "source": "AIRBNB", "url": "https://www.airbnb.com/calendar/ical/...ics?t=..." }
-    // add { "source": "VRBO", "url": "..." } for dual-source listings
-  ],
-  "twilio": {
-    "account_sid": "ACxxxxxxxx",
-    "from_number": "+1...",
-    "_auth_token_note": "token comes from TWILIO_AUTH_TOKEN env, not here"
-  },
-  "owner_number": "+1...",            // gets the confirmation SMS
-  "operator_number": "+1...",         // CrewSync operator; CCed on confirmation + watchdog. null if none.
-  "notification_recipients": [        // who gets the schedule-update SMS (crew, + operator if you want them to see it)
-    "+1...", "+1..."
-  ],
-  "far_future_block_days": 180,       // host blocks starting beyond this are ignored (rolling-window noise)
-  "suspicious_cancel_min": 3,         // guard trips if cancellations > max(this, pct * snapshot size)
+  "client_name": "David's Cozy Cabin",   // used in texts and page title
+  "owner_first_name": "David",           // "Please text David to confirm..."
+  "signature": "- David",                // last line of the crew text (keep it ASCII)
+  "timezone": "America/New_York",        // property's local zone ("today" basis)
+  "site_slug": "david",                  // page lives at /<slug>/
+  "calendar_url": "https://scheck93.github.io/crewsync/david/",
+  "far_future_block_days": 180,          // ignore host blocks starting beyond this
+  "suspicious_cancel_min": 3,            // guard trips if cancellations > max(min, pct * snapshot size)
   "suspicious_cancel_pct": 0.30
 }
 ```
 
-**To add a new client:** copy a `clients/<name>/` folder, edit `config.json`,
-empty the `snapshot.txt` data rows, then do one real run during a quiet period
-to initialize state, and add a cron line.
-
 ---
 
-## How a run works (engine logic)
+## How a run works
 
 1. **Fetch** every feed. If any fetch fails, abort — never report a transient
    feed error as a pile of cancellations.
 2. **Parse** VEVENTs (handles iCal line-folding and `VALUE=DATE` vs `DATE-TIME`).
-3. **Filter** both the live feed and the snapshot identically: drop past
-   checkouts, drop host blocks starting more than `far_future_block_days` out.
+3. **Filter** live feed and snapshot identically: drop past checkouts, drop
+   host blocks starting more than `far_future_block_days` out.
 4. **Diff** by UID -> NEW / CANCELLED / DATE CHANGE.
-5. **Suspicious-diff guard:** if cancellations exceed
-   `max(suspicious_cancel_min, suspicious_cancel_pct x snapshot_size)`, skip the
-   crew SMS, alert owner/operator, and leave the snapshot intact. (Protects
-   against a broken/partial feed nuking real bookings.)
+5. **Suspicious-diff guard** (see above).
 6. **No changes ->** exit silently.
-7. **Changes ->** compose one schedule-update SMS:
-   - chronological, `Wed, 5/13` style dates, `/YY` suffix only for other years
-   - VRBO uses guest names; Airbnb shows "Reserved"; host blocks show "Host block"
-   - "checks in today" / "in-house" annotations relative to today
-   - **QUICK FLIP** tag only when *two real bookings* share a turnover date
-     (a Reserved -> Host block boundary is **not** a flip)
-8. Send the update to `notification_recipients`, a confirmation to
-   `owner_number` (+ `operator_number` if set).
-9. **Overwrite the snapshot** with the new state (real runs only).
+7. **Changes ->** short crew text (up to 3 changes listed, then "+N more"),
+   plus a confirmation to the owner (+ operator if set).
+8. **Save the snapshot.** The workflow commits it and redeploys the calendar.
+
+Airbnb and VRBO don't offer webhooks for calendar changes, so polling every
+30 minutes is as close to instant as it gets. Scheduled runs can start a few
+minutes late when GitHub is busy.
 
 ---
 
@@ -231,34 +175,23 @@ to initialize state, and add a cron line.
 
 | Symptom | Fix |
 |---|---|
-| `ZoneInfoNotFoundError` | `pip install tzdata` |
-| `ERROR ... HTTP 401` from Twilio | wrong/missing `TWILIO_AUTH_TOKEN` |
-| `ERROR ... HTTP 21610` | recipient replied STOP; they unsubscribed at the carrier |
-| Crew got a flood of "NEW" on first run | snapshot was empty — initialize it with one real run during a quiet period, or pre-seed `snapshot.txt` |
-| Daily "1 cancelled + 1 new" host-block churn | Airbnb's rolling advance-booking-window block is inside `far_future_block_days`; lower that value (e.g. 60) and re-init the snapshot |
-| Want to pause a client | comment out its cron line |
+| Run fails with `HTTP 4xx from feed` | calendar link was rotated — regenerate it in Airbnb/VRBO and update `CREWSYNC_PRIVATE` |
+| `ERROR ... HTTP 401` from Twilio | wrong/missing `TWILIO_AUTH_TOKEN` secret |
+| `ERROR ... HTTP 21610` | recipient replied STOP |
+| Texts accepted by Twilio but never arrive (30007) | enable embedded links on the A2P campaign |
+| Crew got a flood of "new booking" | snapshot was stale — run the workflow with "Reset snapshot" |
+| Daily host-block churn | lower `far_future_block_days` (e.g. 60) and reset the snapshot |
+| Pause everything | *Actions → CrewSync → ⋯ → Disable workflow* |
 
 ---
 
-## Security notes
+## Notes
 
-- The Twilio **auth token is a credential**. It lives only in `.env`
-  (gitignored). Don't paste it into `config.json` or commit it.
-- `config.json` does contain phone numbers and the account SID — if you push
-  this to a shared/public repo, treat those as sensitive too (use a private repo).
-- `snapshot.txt` contains booking dates and iCal UIDs but no guest PII beyond
-  first names that the feeds themselves expose.
-
----
-
-## Migration notes
-
-- Ported from the Claude Cowork scheduled task `cozy-cabin-rental-sync`. The natural-language SKILL.md logic is now
-  deterministic Python in `crewsync.py`.
-- Snapshots were copied from the live Cowork state as of 2026-05-18, so the
-  first run here will see **no changes** (no duplicate "NEW" blast) as long as
-  you run it before the next real booking change.
-- Once this is running on your own scheduler, **disable the Cowork scheduled
-  tasks** so the two systems don't both text the crew.
-- Behavior parity included: suspicious-diff guard, real-to-real QUICK FLIP,
-  180-day host-block filter, operator CC pattern, owner-only confirmations.
+- The calendar page is public to anyone with the link (marked `noindex` so
+  search engines skip it). It shows booking dates and the guest first names
+  VRBO includes in its feed.
+- Snapshots are committed to the repo so state survives between runs; they
+  contain dates, iCal UIDs and those same first names.
+- If the repo goes 45 days with no commits, the workflow commits
+  `.github/keepalive`, because GitHub pauses scheduled workflows in public
+  repos after 60 days of inactivity.

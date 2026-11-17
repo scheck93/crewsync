@@ -12,3 +12,5 @@ venv/
 
 # OS cruft
 .DS_Store
+private.json
+_site/

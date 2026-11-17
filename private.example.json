@@ -1,0 +1,12 @@
+{
+  "david-cozy-cabin": {
+    "feeds": [
+      { "source": "VRBO",   "url": "https://www.vrbo.com/icalendar/....ics?nonTentative" },
+      { "source": "AIRBNB", "url": "https://www.airbnb.com/calendar/ical/....ics?t=..." }
+    ],
+    "twilio": { "account_sid": "ACxxxxxxxx", "from_number": "+1..." },
+    "owner_number": "+1...",
+    "operator_number": null,
+    "notification_recipients": ["+1...", "+1..."]
+  }
+}

@@ -10,10 +10,15 @@ Usage:
     python3 crewsync.py clients/david-cozy-cabin/config.json
     python3 crewsync.py clients/david-cozy-cabin/config.json --dry-run
 
-Auth:
-    Twilio auth token is read from the TWILIO_AUTH_TOKEN environment
-    variable (recommended). If unset, falls back to
-    config["twilio"]["auth_token"] if present.
+Private settings:
+    config.json holds only public settings and is safe to commit. Phone
+    numbers, feed URLs and the Twilio account live in a private JSON blob
+    keyed by client folder name, read from the CREWSYNC_PRIVATE environment
+    variable (GitHub Actions secret) or, locally, from private.json at the
+    project root (gitignored). See private.example.json.
+
+    The Twilio auth token is read from the TWILIO_AUTH_TOKEN environment
+    variable.
 
 Exit codes:
     0  success (whether or not changes were found)
@@ -39,6 +44,56 @@ import urllib.error
 from zoneinfo import ZoneInfo
 
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+# ----------------------------------------------------------------------
+# Config loading (public config.json + private settings)
+# ----------------------------------------------------------------------
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+PRIVATE_KEYS = ("feeds", "twilio", "owner_number", "operator_number",
+                "notification_recipients")
+
+
+class ConfigError(Exception):
+    pass
+
+
+def load_private():
+    raw = os.environ.get("CREWSYNC_PRIVATE")
+    if raw:
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise ConfigError(f"CREWSYNC_PRIVATE is not valid JSON: {e}") from e
+    path = os.path.join(HERE, "private.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+    return {}
+
+
+def client_key(config_path):
+    return os.path.basename(os.path.dirname(os.path.abspath(config_path)))
+
+
+def load_config(config_path, require_private=True):
+    """Public config.json merged with this client's private settings."""
+    try:
+        with open(config_path) as f:
+            cfg = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        raise ConfigError(f"cannot read config {config_path}: {e}") from e
+    key = client_key(config_path)
+    priv = load_private().get(key, {})
+    cfg.update(priv)
+    if require_private:
+        missing = [k for k in PRIVATE_KEYS if k not in cfg and k != "operator_number"]
+        if missing:
+            raise ConfigError(
+                f"private settings for '{key}' missing {missing} — set "
+                f"CREWSYNC_PRIVATE or create private.json (see private.example.json)")
+    return cfg
 
 
 # ----------------------------------------------------------------------
@@ -243,7 +298,7 @@ def fmt_date(d, today):
 
 
 def fmt_dated(d, today):
-    return f"{WEEKDAYS[d.weekday()]}, {fmt_date(d, today)}"
+    return f"{WEEKDAYS[d.weekday()]} {fmt_date(d, today)}"
 
 
 def guest_label(r):
@@ -256,43 +311,36 @@ def guest_label(r):
     return "Reserved"
 
 
-def status_annot(r, today):
-    if r["dtstart"] == today:
-        return f"(checks in today, checks out {fmt_dated(r['dtend'], today)})"
-    if r["dtstart"] < today < r["dtend"]:
-        return f"(in-house, checks out {fmt_dated(r['dtend'], today)})"
-    return ""
-
-
-def format_change_line(c, today):
+def short_change(c, today):
+    """Compact one-item description, e.g. 'new booking Wed 12/3 to Sun 12/7'.
+    Plain ASCII on purpose: a single non-GSM character (en dash, arrow)
+    switches the whole SMS to UCS-2 and halves the characters per segment."""
+    def span(r):
+        return f"{fmt_dated(r['dtstart'], today)} to {fmt_dated(r['dtend'], today)}"
     if c["type"] == "NEW":
-        r = c["new"]
-        return f"NEW: {fmt_dated(r['dtstart'], today)} – {fmt_dated(r['dtend'], today)} - {guest_label(r)}"
+        kind = "new host block" if is_host_block(c["new"]) else "new booking"
+        return f"{kind} {span(c['new'])}"
     if c["type"] == "CANCELLED":
-        r = c["old"]
-        return f"CANCELLED: {guest_label(r)}, {fmt_dated(r['dtstart'], today)} – {fmt_dated(r['dtend'], today)}"
-    o, n = c["old"], c["new"]
-    return (f"DATE CHANGE: {guest_label(n)} was {fmt_dated(o['dtstart'], today)}–{fmt_dated(o['dtend'], today)}, "
-            f"now {fmt_dated(n['dtstart'], today)}–{fmt_dated(n['dtend'], today)}")
+        kind = "host block removed" if is_host_block(c["old"]) else "cancelled"
+        return f"{kind} {span(c['old'])}"
+    return f"dates changed from {span(c['old'])}, now {span(c['new'])}"
 
 
-def format_update_sms(cfg, live, changes, today):
-    flip_dates = compute_flip_dates(live)
-    change_lines = [format_change_line(c, today) for c in changes]
-    sched_lines = []
-    for r in sorted(live, key=lambda x: x["dtstart"]):
-        line = f"• {fmt_dated(r['dtstart'], today)} – {fmt_dated(r['dtend'], today)} - {guest_label(r)}"
-        a = status_annot(r, today)
-        if a:
-            line += " " + a
-        if (not is_host_block(r)) and (r["dtstart"] in flip_dates or r["dtend"] in flip_dates):
-            line += " — QUICK FLIP"
-        sched_lines.append(line)
-    return (cfg["sms_title"] + "\n\nCHANGES:\n"
-            + "\n".join("• " + ln for ln in change_lines)
-            + "\n\nCURRENT SCHEDULE:\n"
-            + "\n".join(sched_lines)
-            + "\n\n" + cfg["signature"])
+def format_update_sms(cfg, live, changes, today, max_items=3):
+    """Short crew text: what changed (briefly), the calendar link, and a
+    request to confirm coverage. Full details live on the web calendar."""
+    ordered = sorted(changes, key=lambda c: (c.get("new") or c["old"])["dtstart"])
+    items = [short_change(c, today) for c in ordered[:max_items]]
+    if len(ordered) > max_items:
+        items.append(f"+{len(ordered) - max_items} more")
+    owner = cfg.get("owner_first_name") or "the owner"
+    body = f"{cfg['client_name']} schedule changed: " + "; ".join(items) + "."
+    if cfg.get("calendar_url"):
+        body += f"\n\nSee the updated calendar: {cfg['calendar_url']}"
+    body += f"\n\nPlease text {owner} to confirm you can cover the new schedule."
+    if cfg.get("signature"):
+        body += f"\n{cfg['signature']}"
+    return body
 
 
 def format_confirmation_sms(cfg, changes, recipient_count, now_local):
@@ -310,7 +358,7 @@ def format_confirmation_sms(cfg, changes, recipient_count, now_local):
 # ----------------------------------------------------------------------
 
 def get_auth_token(cfg):
-    return os.environ.get("TWILIO_AUTH_TOKEN") or cfg["twilio"].get("auth_token")
+    return os.environ.get("TWILIO_AUTH_TOKEN")
 
 
 def send_sms(cfg, to, body, dry_run=False):
@@ -355,10 +403,9 @@ def confirmation_recipients(cfg):
 
 def run(config_path, dry_run=False, init_snapshot=False):
     try:
-        with open(config_path) as f:
-            cfg = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        print(f"FATAL: cannot read config {config_path}: {e}", file=sys.stderr)
+        cfg = load_config(config_path)
+    except ConfigError as e:
+        print(f"FATAL: {e}", file=sys.stderr)
         return 1
 
     tz = ZoneInfo(cfg.get("timezone", "America/New_York"))
