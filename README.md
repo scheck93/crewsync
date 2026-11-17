@@ -20,13 +20,10 @@ crewsync/
 ├── send_message.py        # ad-hoc one-off sends (intros, trial reminders)
 ├── run.sh                 # loads .env then runs the engine (used by cron)
 ├── clients/
-│   ├── david-cozy-cabin/
-│   │   ├── config.json    # feeds, recipients, Twilio account, options
-│   │   └── snapshot.txt   # last-known booking state (auto-managed)
-│   └── conor-backman/
-│       ├── config.json
-│       └── snapshot.txt
-├── crontab.example        # schedule entries (8/6/9 for David, 9/12/8 for Conor)
+│   └── david-cozy-cabin/
+│       ├── config.json    # feeds, recipients, Twilio account, options
+│       └── snapshot.txt   # last-known booking state (auto-managed)
+├── crontab.example        # schedule entries (8 AM / 6 PM / 9 PM ET)
 ├── .env.example           # template for the Twilio secret
 ├── .env                   # real Twilio token (gitignored — don't commit)
 ├── .gitignore
@@ -83,17 +80,17 @@ Computes the diff and prints exactly what *would* be sent, but sends no SMS
 and does not modify the snapshot:
 
 ```bash
-python3 crewsync.py clients/conor-backman/config.json --dry-run
+python3 crewsync.py clients/david-cozy-cabin/config.json --dry-run
 ```
 
 ### Real run, one client
 
 ```bash
 # Token from your shell environment:
-TWILIO_AUTH_TOKEN=xxxxxxxx python3 crewsync.py clients/conor-backman/config.json
+TWILIO_AUTH_TOKEN=xxxxxxxx python3 crewsync.py clients/david-cozy-cabin/config.json
 
 # ...or let run.sh load it from .env:
-./run.sh clients/conor-backman/config.json
+./run.sh clients/david-cozy-cabin/config.json
 ```
 
 ### All clients at once
@@ -115,10 +112,9 @@ A run prints one of:
 
 ## Scheduling (cron)
 
-The original cadence was **three checks per day** per client:
+The cadence is **three checks per day**:
 
 - David's Cozy Cabin -> **8 AM, 6 PM, 9 PM ET**
-- Conor / 267 Anthony Ave -> **9 AM, 12 PM, 8 PM ET**
 
 To replicate:
 
@@ -151,22 +147,21 @@ the sync logic.
 
 ```bash
 # Welcome/intro text to the crew + owner:
-python3 send_message.py clients/conor-backman/config.json \
+python3 send_message.py clients/david-cozy-cabin/config.json \
   --to crew,owner --body-file intro.txt
 
-# Trial-end reminder to owner + operator only:
-python3 send_message.py clients/conor-backman/config.json \
-  --to owner,operator --body "Heads up — your trial ends 6/1..."
+# Note to owner + operator only:
+python3 send_message.py clients/david-cozy-cabin/config.json \
+  --to owner,operator --body "Heads up — ..."
 
 # Always preview first:
-python3 send_message.py clients/conor-backman/config.json --to all --body "..." --dry-run
+python3 send_message.py clients/david-cozy-cabin/config.json --to all --body "..." --dry-run
 ```
 
 `--to` accepts `crew`, `owner`, `operator`, `all`, and/or raw `+E164` numbers,
 comma-separated and de-duplicated.
 
-For a true one-shot at a future time (e.g. Conor's trial-end reminder on
-May 29), use `at` instead of cron so it fires exactly once, or just run
+For a true one-shot at a future time (e.g. a reminder on a specific date), use `at` instead of cron so it fires exactly once, or just run
 `send_message.py` manually that day.
 
 ---
@@ -177,9 +172,9 @@ Each `clients/<name>/config.json`:
 
 ```jsonc
 {
-  "client_name": "267 Anthony Ave",                 // used in confirmation + watchdog text
-  "sms_title": "267 Anthony Ave Schedule Update",   // header line of the crew SMS
-  "signature": "— Conor",                           // last line of the crew SMS
+  "client_name": "David's Cozy Cabin",                 // used in confirmation + watchdog text
+  "sms_title": "David's Cozy Cabin Schedule Update",   // header line of the crew SMS
+  "signature": "— David",                              // last line of the crew SMS
   "timezone": "America/New_York",                   // property's local zone ("today" basis)
   "feeds": [                                         // one or more iCal feeds
     { "source": "AIRBNB", "url": "https://www.airbnb.com/calendar/ical/...ics?t=..." }
@@ -258,8 +253,7 @@ to initialize state, and add a cron line.
 
 ## Migration notes
 
-- Ported from the Claude Cowork scheduled tasks `cozy-cabin-rental-sync` and
-  `conor-backman-rental-sync`. The natural-language SKILL.md logic is now
+- Ported from the Claude Cowork scheduled task `cozy-cabin-rental-sync`. The natural-language SKILL.md logic is now
   deterministic Python in `crewsync.py`.
 - Snapshots were copied from the live Cowork state as of 2026-05-18, so the
   first run here will see **no changes** (no duplicate "NEW" blast) as long as

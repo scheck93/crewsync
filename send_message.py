@@ -6,13 +6,13 @@ service announcements — outside the automated schedule-sync flow.
 
 Usage:
     # Send a message to a client's crew + owner + operator:
-    python3 send_message.py clients/conor-backman/config.json --to crew,owner,operator --body "Your message"
+    python3 send_message.py clients/david-cozy-cabin/config.json --to crew,owner,operator --body "Your message"
 
     # Read body from a file (handy for long/multiline messages):
-    python3 send_message.py clients/conor-backman/config.json --to owner,operator --body-file intro.txt
+    python3 send_message.py clients/david-cozy-cabin/config.json --to owner,operator --body-file intro.txt
 
     # Dry-run (print, don't send):
-    python3 send_message.py clients/conor-backman/config.json --to crew --body "Hi" --dry-run
+    python3 send_message.py clients/david-cozy-cabin/config.json --to crew --body "Hi" --dry-run
 
 --to is a comma-separated list of audiences:
     crew      -> notification_recipients

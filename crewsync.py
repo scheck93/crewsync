@@ -7,8 +7,8 @@ snapshot, and texts the crew via Twilio when bookings change. Stays
 silent on quiet runs.
 
 Usage:
-    python3 crewsync.py clients/conor-backman/config.json
-    python3 crewsync.py clients/conor-backman/config.json --dry-run
+    python3 crewsync.py clients/david-cozy-cabin/config.json
+    python3 crewsync.py clients/david-cozy-cabin/config.json --dry-run
 
 Auth:
     Twilio auth token is read from the TWILIO_AUTH_TOKEN environment

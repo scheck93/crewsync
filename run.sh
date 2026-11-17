@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Loads .env (for TWILIO_AUTH_TOKEN) then runs crewsync.py with the given args.
-# Example: ./run.sh clients/conor-backman/config.json
+# Example: ./run.sh clients/david-cozy-cabin/config.json
 set -euo pipefail
 cd "$(dirname "$0")"
 set -a
