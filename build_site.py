@@ -96,98 +96,130 @@ TEMPLATE = r"""<!DOCTYPE html>
 <title>__TITLE__ Schedule</title>
 <style>
   :root {
-    --bg: #FAF8F3; --card: #FFFFFF; --ink: #2C2C2C; --muted: #6B6B6B;
-    --line: #E5E0D5; --teal: #2D6A5F; --amber: #E8883A;
-    --airbnb: #E0565B; --vrbo: #2F6FB5; --block: #B9B4AA;
-    --today: #2D6A5F;
+    --bg: #FFFFFF; --ink: #1B1F2E; --muted: #6B7080; --line: #9EA3AE; --soft: #E6E8EC;
+    --link: #1668E3; --amber: #E8883A;
+    --vrbo: #191E3B; --vrbo-ink: #FFFFFF;
+    --airbnb: #DCDDE3; --airbnb-ink: #1B1F2E; --airbnb-edge: #8A8F9C;
+    --block: #F1F2F4; --block-edge: #B4B8C2;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #161616; --card: #202020; --ink: #EDEDED; --muted: #A0A0A0;
-      --line: #333; --teal: #6FC2B0; --amber: #F0A060;
-      --airbnb: #E8676C; --vrbo: #5B93D6; --block: #5E5A54; --today: #6FC2B0;
+      --bg: #15171C; --ink: #ECEDF0; --muted: #A2A6B0; --line: #4A4E58; --soft: #262932;
+      --link: #6FA4F5;
+      --vrbo: #E4E6EE; --vrbo-ink: #15171C;
+      --airbnb: #3A3E4A; --airbnb-ink: #ECEDF0; --airbnb-edge: #6A6F7C;
+      --block: #23262E; --block-edge: #555A66;
     }
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-text-size-adjust: 100%;
   }
-  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; }
-  h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: .9rem; margin: 0 0 16px; }
-  .note {
-    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--amber);
-    border-radius: 8px; padding: 10px 12px; font-size: .92rem; margin-bottom: 18px;
+  main { max-width: 1120px; margin: 0 auto; padding: 18px 16px 48px; }
+  .prop { font-weight: 700; font-size: 1.05rem; }
+  .sub { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+  .note { font-size: .9rem; margin: 12px 0 16px; padding: 10px 12px; border-radius: 8px; background: var(--soft); }
+
+  .bar-top { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .bar-top h1 { font-size: 1.35rem; margin: 0 6px 0 0; font-weight: 600; }
+  .today-btn {
+    border: 1px solid var(--link); color: var(--link); background: none; border-radius: 999px;
+    padding: 5px 14px; font-size: .8rem; cursor: pointer;
   }
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--muted); margin: 0 0 10px; }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .sw { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
-  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  .nav h2 { font-size: 1.05rem; margin: 0; }
+  .nav { display: flex; align-items: center; gap: 4px; }
   .nav button {
-    background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 8px;
-    font-size: 1.1rem; width: 40px; height: 36px; cursor: pointer;
+    background: none; border: 0; color: var(--ink); font-size: 1.5rem; line-height: 1;
+    width: 36px; height: 36px; cursor: pointer; border-radius: 50%;
   }
-  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-  .dow { text-align: center; font-size: .72rem; color: var(--muted); padding: 2px 0 4px; }
-  .day {
-    position: relative; min-height: 58px; border-radius: 6px; padding: 3px 4px;
-    font-size: .78rem; background: var(--bg); overflow: hidden;
+  .nav button:hover { background: var(--soft); }
+  .nav .label { font-size: 1.3rem; font-weight: 500; min-width: 9.5em; text-align: center; }
+
+  .dows { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .dows div { text-align: center; font-size: .78rem; font-weight: 600; padding: 0 0 8px; }
+  .weeks { border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+  .week { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cell {
+    border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    min-height: 120px; padding: 8px; font-size: .78rem; position: relative;
   }
-  .day.out { visibility: hidden; }
-  .day.past { opacity: .45; }
-  .day .n { font-weight: 600; position: relative; z-index: 1; }
-  .day.today { outline: 2px solid var(--today); outline-offset: -2px; }
-  .day .tag {
-    position: absolute; right: 4px; bottom: 3px; z-index: 1;
-    font-size: .64rem; font-weight: 700; line-height: 1.15;
+  .cell.blank { border-right-color: transparent; }
+  .week:first-child .cell.blank { border-bottom-color: var(--line); }
+  .cell .n { color: var(--muted); }
+  .cell.booked .n { text-decoration: line-through; }
+  .cell.today .n {
+    display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--link); color: #fff; text-decoration: none; font-size: .72rem;
   }
-  /* Split cells: top-left half = last night's guest, bottom-right = tonight's. */
-  .day.am .n, .day.pm .tag { color: #fff; text-shadow: 0 0 2px rgba(0,0,0,.35); }
-  .flip { background: var(--amber); color: #fff; border-radius: 3px; padding: 0 3px; text-shadow: none; }
-  h3 { font-size: 1.05rem; margin: 26px 0 8px; }
-  ul.list { list-style: none; margin: 0; padding: 0; }
-  ul.list li {
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 12px; margin-bottom: 8px; display: flex; gap: 10px; align-items: flex-start;
+  .cell .flip {
+    position: absolute; left: 8px; bottom: 8px; background: var(--amber); color: #fff;
+    font-size: .64rem; font-weight: 700; border-radius: 4px; padding: 1px 5px; letter-spacing: .02em;
   }
-  ul.list .bar { width: 5px; align-self: stretch; border-radius: 3px; flex: none; }
+  .pill {
+    position: absolute; top: calc(50% - 15px); height: 30px; z-index: 1;
+    display: flex; align-items: center; padding: 0 12px; font-size: .86rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 15px;
+  }
+  .pill span { overflow: hidden; text-overflow: ellipsis; }
+  .pill.vrbo { background: var(--vrbo); color: var(--vrbo-ink); }
+  .pill.airbnb { background: var(--airbnb); color: var(--airbnb-ink); border: 1px solid var(--airbnb-edge); }
+  .pill.block {
+    color: var(--muted); border: 1px solid var(--block-edge);
+    background: repeating-linear-gradient(135deg, var(--block) 0 6px, var(--bg) 6px 12px);
+  }
+  .pill.cont-l { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; }
+  .pill.cont-r { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: 0; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .78rem; margin-top: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { display: inline-block; width: 22px; height: 12px; border-radius: 6px; }
+
+  h3 { font-size: 1.05rem; margin: 30px 0 8px; }
+  ul.list { list-style: none; margin: 0; padding: 0; max-width: 640px; }
+  ul.list li { border-bottom: 1px solid var(--soft); padding: 10px 2px; }
   ul.list .main { font-weight: 600; }
-  ul.list .meta { color: var(--muted); font-size: .85rem; margin-top: 2px; }
-  .empty { color: var(--muted); font-size: .9rem; }
-  footer { color: var(--muted); font-size: .8rem; margin-top: 28px; }
+  ul.list .meta { color: var(--muted); font-size: .86rem; margin-top: 2px; }
+  ul.list .tag { background: var(--amber); color: #fff; font-size: .7rem; font-weight: 700; border-radius: 4px; padding: 1px 5px; }
+  footer { color: var(--muted); font-size: .78rem; margin-top: 28px; }
+
+  @media (max-width: 640px) {
+    .cell { min-height: 72px; padding: 4px; font-size: .72rem; }
+    .pill { height: 24px; top: calc(50% - 12px); font-size: .7rem; padding: 0 6px; border-radius: 12px; }
+    .cell .flip { left: 3px; bottom: 3px; font-size: .58rem; padding: 0 3px; }
+    .nav .label { font-size: 1.1rem; min-width: 8.5em; }
+    .bar-top h1 { font-size: 1.15rem; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <h1>__TITLE__</h1>
-  <p class="sub" id="updated"></p>
-  <div class="note">Check the cleanings below. If anything changed, <strong>text __OWNER__ to confirm you can cover it.</strong></div>
+  <div class="prop">__TITLE__</div>
+  <div class="sub" id="updated"></div>
+  <div class="note">If anything changed, <strong>text __OWNER__ to confirm you can cover the cleaning.</strong></div>
 
-  <div class="legend">
-    <span><i class="sw" style="background:var(--airbnb)"></i>Airbnb</span>
-    <span><i class="sw" style="background:var(--vrbo)"></i>VRBO</span>
-    <span><i class="sw" style="background:var(--block)"></i>Host block</span>
-    <span><i class="sw" style="background:var(--amber)"></i>Quick flip (same-day turnover)</span>
-  </div>
-
-  <div class="card">
+  <div class="bar-top">
+    <h1>Calendar</h1>
+    <button class="today-btn" id="today">Today</button>
     <div class="nav">
       <button id="prev" aria-label="Previous month">&#8249;</button>
-      <h2 id="month"></h2>
+      <span class="label" id="month"></span>
       <button id="next" aria-label="Next month">&#8250;</button>
     </div>
-    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="dows"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+  <div class="weeks" id="weeks"></div>
+
+  <div class="legend">
+    <span><i style="background:var(--vrbo)"></i>VRBO booking</span>
+    <span><i style="background:var(--airbnb);border:1px solid var(--airbnb-edge)"></i>Airbnb booking</span>
+    <span><i style="border:1px solid var(--block-edge);background:repeating-linear-gradient(135deg,var(--block) 0 4px,var(--bg) 4px 8px)"></i>Host block</span>
+    <span><i style="background:var(--amber)"></i>Quick flip (same-day turnover)</span>
   </div>
 
   <h3>Upcoming cleanings</h3>
   <ul class="list" id="cleanings"></ul>
-
-  <h3>All bookings</h3>
-  <ul class="list" id="bookings"></ul>
 
   <footer>Updated automatically from the Airbnb and VRBO calendars.</footer>
 </main>
@@ -195,86 +227,81 @@ TEMPLATE = r"""<!DOCTYPE html>
 const DATA = __DATA__;
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY = 86400000;
 
 const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
-const key = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate()+n);
+const diff = (a, b) => Math.round((b - a) / DAY);
 const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 const fmt = d => DOW[d.getDay()]+" "+(d.getMonth()+1)+"/"+d.getDate()+(d.getFullYear()!==today.getFullYear() ? "/"+String(d.getFullYear()).slice(2) : "");
-const nights = (a, b) => Math.round((b - a) / 86400000);
-
-const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const colorOf = b => b.block ? "--block" : (b.source === "VRBO" ? "--vrbo" : "--airbnb");
-const name = b => b.block ? "Host block" : (b.label === "Reserved" ? (b.source === "VRBO" ? "VRBO guest" : "Airbnb guest") : b.label + " (" + (b.source === "VRBO" ? "VRBO" : "Airbnb") + ")");
-
-const bookings = DATA.bookings.map(b => ({...b, s: parse(b.start), e: parse(b.end)}))
-  .filter(b => b.e >= today);
-const real = bookings.filter(b => !b.block);
-
-// Night of date d belongs to the booking with start <= d < end.
-const nightOwner = d => bookings.find(b => b.s <= d && d < b.e);
-const checkouts = new Map(real.map(b => [key(b.e), b]));
-const checkins = new Map(real.map(b => [key(b.s), b]));
-const isFlip = d => checkouts.has(key(d)) && checkins.has(key(d));
-
-if (DATA.updated) {
-  document.getElementById("updated").textContent = "Schedule last changed " + fmt(parse(DATA.updated));
-}
-
-let view = new Date(today.getFullYear(), today.getMonth(), 1);
-function renderMonth() {
-  document.getElementById("month").textContent = MON[view.getMonth()] + " " + view.getFullYear();
-  const grid = document.getElementById("grid");
-  grid.innerHTML = DOW.map(d => '<div class="dow">'+d.slice(0,2)+'</div>').join("");
-  const first = view.getDay();
-  for (let i = 0; i < first; i++) grid.insertAdjacentHTML("beforeend", '<div class="day out"></div>');
-  const days = new Date(view.getFullYear(), view.getMonth()+1, 0).getDate();
-  for (let n = 1; n <= days; n++) {
-    const d = new Date(view.getFullYear(), view.getMonth(), n);
-    const am = nightOwner(addDays(d, -1));   // guest who slept here last night
-    const pm = nightOwner(d);                // guest who sleeps here tonight
-    const cell = document.createElement("div");
-    cell.className = "day" + (d < today ? " past" : "") + (+d === +today ? " today" : "");
-    const a = am ? css(colorOf(am)) : null, p = pm ? css(colorOf(pm)) : null;
-    if (a && p && am !== pm) cell.style.background = `linear-gradient(135deg, ${a} 50%, ${p} 50%)`;
-    else if (p) cell.style.background = am === pm ? p : `linear-gradient(135deg, transparent 50%, ${p} 50%)`;
-    else if (a) cell.style.background = `linear-gradient(135deg, ${a} 50%, transparent 50%)`;
-    if (a) cell.classList.add("am");
-    if (p) cell.classList.add("pm");
-    let tag = "";
-    if (isFlip(d)) tag = '<span class="flip">FLIP</span>';
-    else if (checkouts.has(key(d))) tag = "Out";
-    else if (checkins.has(key(d))) tag = "In";
-    cell.innerHTML = '<span class="n">'+n+'</span>' + (tag ? '<span class="tag">'+tag+'</span>' : "");
-    cell.title = [am && am !== pm ? name(am)+" checks out" : "", pm ? (am === pm ? name(pm) : name(pm)+" checks in") : ""].filter(Boolean).join(" / ");
-    grid.appendChild(cell);
-  }
-}
-document.getElementById("prev").onclick = () => { view = new Date(view.getFullYear(), view.getMonth()-1, 1); renderMonth(); };
-document.getElementById("next").onclick = () => { view = new Date(view.getFullYear(), view.getMonth()+1, 1); renderMonth(); };
-renderMonth();
-
-function li(color, main, meta) {
-  return '<li><span class="bar" style="background:var('+color+')"></span><div><div class="main">'+main+'</div><div class="meta">'+meta+'</div></div></li>';
-}
 const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-const cleanList = real.filter(b => b.e >= today).sort((x, y) => x.e - y.e).map(b => {
+const bookings = DATA.bookings.map(b => ({...b, s: parse(b.start), e: parse(b.end)})).filter(b => b.e >= today);
+const real = bookings.filter(b => !b.block);
+const kind = b => b.block ? "block" : (b.source === "VRBO" ? "vrbo" : "airbnb");
+const name = b => b.block ? "Host block" : (b.label === "Reserved" ? (b.source === "VRBO" ? "VRBO guest" : "Airbnb guest") : b.label);
+const sameDay = (a, b) => +a === +b;
+const isFlip = d => real.some(b => sameDay(b.e, d)) && real.some(b => sameDay(b.s, d));
+const bookedNight = d => bookings.some(b => b.s <= d && d < b.e);
+
+if (DATA.updated) document.getElementById("updated").textContent = "Schedule last changed " + fmt(parse(DATA.updated));
+
+let view = new Date(today.getFullYear(), today.getMonth(), 1);
+function render() {
+  document.getElementById("month").textContent = MON[view.getMonth()] + " " + view.getFullYear();
+  const weeks = document.getElementById("weeks");
+  weeks.innerHTML = "";
+  const first = view;
+  const last = new Date(view.getFullYear(), view.getMonth()+1, 0);
+  let rowStart = addDays(first, -first.getDay());
+  while (rowStart <= last) {
+    const row = document.createElement("div");
+    row.className = "week";
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(rowStart, i);
+      const cell = document.createElement("div");
+      if (d.getMonth() !== view.getMonth()) { cell.className = "cell blank"; row.appendChild(cell); continue; }
+      cell.className = "cell" + (bookedNight(d) ? " booked" : "") + (sameDay(d, today) ? " today" : "");
+      cell.innerHTML = '<span class="n">' + d.getDate() + '</span>' + (isFlip(d) ? '<span class="flip">FLIP</span>' : "");
+      row.appendChild(cell);
+    }
+    // Bars run from mid-day of check-in to mid-day of checkout, clipped to the month.
+    const rowEnd = addDays(rowStart, 7);
+    const visFrom = rowStart < first ? first : rowStart;
+    const visTo = rowEnd > addDays(last, 1) ? addDays(last, 1) : rowEnd;
+    for (const b of bookings) {
+      if (b.e < visFrom || b.s >= visTo) continue;
+      let start, end, cls = "pill " + kind(b);
+      if (b.s >= visFrom) start = diff(rowStart, b.s) + 0.5; else { start = diff(rowStart, visFrom); cls += " cont-l"; }
+      if (b.e < visTo) end = diff(rowStart, b.e) + 0.5; else { end = diff(rowStart, visTo); cls += " cont-r"; }
+      if (end <= start) continue;
+      const p = document.createElement("div");
+      p.className = cls;
+      p.style.left = (start / 7 * 100) + "%";
+      p.style.width = ((end - start) / 7 * 100) + "%";
+      p.title = name(b) + ": " + fmt(b.s) + " to " + fmt(b.e);
+      p.innerHTML = "<span>" + esc(name(b)) + "</span>";
+      row.appendChild(p);
+    }
+    weeks.appendChild(row);
+    rowStart = rowEnd;
+  }
+}
+const go = m => { view = new Date(view.getFullYear(), view.getMonth()+m, 1); render(); };
+document.getElementById("prev").onclick = () => go(-1);
+document.getElementById("next").onclick = () => go(1);
+document.getElementById("today").onclick = () => { view = new Date(today.getFullYear(), today.getMonth(), 1); render(); };
+render();
+
+const items = real.slice().sort((x, y) => x.e - y.e).map(b => {
   const next = real.filter(n => n.s >= b.e).sort((x, y) => x.s - y.s)[0];
-  let meta = esc(name(b)) + " checks out.";
-  if (next && +next.s === +b.e) meta += ' <span class="flip">QUICK FLIP</span> next guest arrives the same day.';
+  let meta = esc(name(b)) + " (" + (b.source === "VRBO" ? "VRBO" : "Airbnb") + ") checks out.";
+  if (next && sameDay(next.s, b.e)) meta += ' <span class="tag">QUICK FLIP</span> next guest arrives the same day.';
   else if (next) meta += " Next guest arrives " + fmt(next.s) + ".";
   else meta += " No next booking yet.";
-  return li(+b.e === +today ? "--today" : colorOf(b), fmt(b.e) + (+b.e === +today ? " (today)" : ""), meta);
+  return '<li><div class="main">' + fmt(b.e) + (sameDay(b.e, today) ? " (today)" : "") + '</div><div class="meta">' + meta + '</div></li>';
 });
-document.getElementById("cleanings").innerHTML = cleanList.join("") || '<li class="empty">No upcoming cleanings.</li>';
-
-const bookList = bookings.map(b => {
-  const here = b.s <= today && today < b.e;
-  const meta = (b.block ? "Owner/host hold" : nights(b.s, b.e) + " night" + (nights(b.s, b.e) === 1 ? "" : "s")) + (here ? " · in-house now" : "");
-  return li(colorOf(b), fmt(b.s) + " to " + fmt(b.e) + " · " + esc(name(b)), meta);
-});
-document.getElementById("bookings").innerHTML = bookList.join("") || '<li class="empty">No upcoming bookings.</li>';
+document.getElementById("cleanings").innerHTML = items.join("") || '<li class="meta">No upcoming cleanings.</li>';
 </script>
 </body>
 </html>
