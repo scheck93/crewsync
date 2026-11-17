@@ -408,6 +408,11 @@ def run(config_path, dry_run=False, init_snapshot=False):
         print(f"FATAL: {e}", file=sys.stderr)
         return 1
 
+    if not dry_run and not init_snapshot and not get_auth_token(cfg):
+        print("FATAL: TWILIO_AUTH_TOKEN is not set — can't send texts. "
+              "Add it as a GitHub Actions secret (or to .env locally).", file=sys.stderr)
+        return 1
+
     tz = ZoneInfo(cfg.get("timezone", "America/New_York"))
     now_local = datetime.datetime.now(tz)
     today = now_local.date()
@@ -471,7 +476,13 @@ def run(config_path, dry_run=False, init_snapshot=False):
     for to in conf_recips:
         send_sms(cfg, to, conf_body, dry_run)
 
-    # 10. Persist new snapshot (only on a real run)
+    # 10. Persist new snapshot (only on a real run). If every crew text
+    # failed, keep the old snapshot so the next run retries the same change.
+    failed = [to for to, sid, _ in sent if not sid]
+    if not dry_run and sent and len(failed) == len(sent):
+        print("FATAL: every crew text failed; snapshot NOT updated, will retry next run.",
+              file=sys.stderr)
+        return 1
     if not dry_run:
         write_snapshot(snap_path, live, cfg["client_name"], today)
 
@@ -479,6 +490,10 @@ def run(config_path, dry_run=False, init_snapshot=False):
     sids = [s for _, s, _ in sent if s]
     print(f"Sent {len(changes)} change(s) to {len(cfg['notification_recipients'])} recipient(s) "
           f"(+ {len(conf_recips)} confirmation(s)). SIDs: {', '.join(sids)}")
+    if failed:
+        print(f"ERROR: text failed for {len(failed)} recipient(s): {', '.join(failed)}",
+              file=sys.stderr)
+        return 1  # fail the run so GitHub emails the owner
     return 0
 
 
