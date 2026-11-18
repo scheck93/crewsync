@@ -39,12 +39,13 @@ crewsync/
 ├── build_site.py            # builds the GitHub Pages site into _site/
 ├── send_message.py          # ad-hoc one-off sends (intros, announcements)
 ├── heartbeat.py             # weekly "still running" text to the owner
+├── guest-replies/           # Gmail -> Claude suggested replies to Airbnb guests (Apps Script)
 ├── run.sh                   # local helper: loads .env, runs the engine
 ├── clients/
 │   └── david-cozy-cabin/
 │       ├── config.json      # PUBLIC settings (name, link, options)
 │       └── snapshot.txt     # last-known booking state (auto-managed)
-├── website/index.html       # landing page (site root)
+├── website/                 # landing page (site root) + /copy/ page for reply drafts
 ├── private.example.json     # template for the PRIVATE settings
 ├── .github/workflows/crewsync.yml   # schedule + deploy
 └── README.md

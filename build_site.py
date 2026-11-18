@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the static site published to GitHub Pages.
 
-    _site/index.html          <- website/index.html (landing page)
+    _site/...                 <- everything in website/ (landing page, /copy/)
     _site/<site_slug>/        <- one calendar page per client, built from
                                  that client's snapshot.txt
 
@@ -65,10 +65,11 @@ def render_calendar(cfg, records, updated):
 def build(out_dir):
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
-    os.makedirs(out_dir)
-    landing = os.path.join(HERE, "website", "index.html")
-    if os.path.exists(landing):
-        shutil.copy(landing, os.path.join(out_dir, "index.html"))
+    website = os.path.join(HERE, "website")
+    if os.path.isdir(website):
+        shutil.copytree(website, out_dir)  # landing page + /copy/ helper page
+    else:
+        os.makedirs(out_dir)
     # Plain static files: tell Pages not to run Jekyll.
     open(os.path.join(out_dir, ".nojekyll"), "w").close()
 
