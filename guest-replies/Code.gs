@@ -89,6 +89,52 @@ function testLatest() {
   handleMessage_(msgs[msgs.length - 1], playbook, true);
 }
 
+/**
+ * Timers for the GitHub side of CrewSync. GitHub's own schedules don't fire
+ * for this repo, so these ask GitHub to run each workflow instead:
+ *   calendar sync      every 30 minutes
+ *   extend-stay offers daily around 4 PM
+ *   weekly heartbeat   Mondays around 9 AM
+ * Needs a GITHUB_TOKEN script property (fine-grained token, crewsync repo
+ * only, "Actions: Read and write"). Run setupGitHubTimers() once to start them.
+ */
+function setupGitHubTimers() {
+  if (!PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN')) {
+    throw new Error('Add GITHUB_TOKEN under Project Settings -> Script properties first.');
+  }
+  const handlers = ['runCalendarSync', 'runExtendOffers', 'runHeartbeat'];
+  ScriptApp.getProjectTriggers()
+    .filter(t => handlers.includes(t.getHandlerFunction()))
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('runCalendarSync').timeBased().everyMinutes(30).create();
+  ScriptApp.newTrigger('runExtendOffers').timeBased().everyDays(1).atHour(16).nearMinute(15)
+    .inTimezone(CONFIG.TIMEZONE).create();
+  ScriptApp.newTrigger('runHeartbeat').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(9)
+    .inTimezone(CONFIG.TIMEZONE).create();
+  runCalendarSync(); // once now, so you can see it work
+  Logger.log('GitHub timers started: calendar every 30 min, offers daily ~4 PM, heartbeat Mondays ~9 AM.');
+}
+
+function runCalendarSync() { dispatchWorkflow_('crewsync.yml', {}); }
+function runExtendOffers() { dispatchWorkflow_('extend-offers.yml', { dry_run: 'false' }); }
+function runHeartbeat() { dispatchWorkflow_('heartbeat.yml', {}); }
+
+function dispatchWorkflow_(file, inputs) {
+  const token = PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN');
+  const res = UrlFetchApp.fetch(
+    'https://api.github.com/repos/scheck93/crewsync/actions/workflows/' + file + '/dispatches', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' },
+      payload: JSON.stringify({ ref: 'main', inputs: inputs }),
+      muteHttpExceptions: true,
+    });
+  if (res.getResponseCode() !== 204) {
+    throw new Error('GitHub said ' + res.getResponseCode() + ' for ' + file + ': ' + res.getContentText().slice(0, 300));
+  }
+  Logger.log('Started ' + file + ' on GitHub.');
+}
+
 // ---------------------------------------------------------------------------
 // Core
 // ---------------------------------------------------------------------------

@@ -63,3 +63,25 @@ you only get drafts for new messages.
 
 Each guest message that gets checked is one Claude API call, a few cents at
 most. Your playbook is cached between calls to keep it cheap.
+
+## GitHub timers (calendar sync, extend-stay offers, heartbeat)
+
+GitHub's own scheduled runs don't fire for this repo, so this script also
+starts those GitHub workflows on a timer:
+
+- calendar sync: every 30 minutes
+- extend-stay offers: daily around 4 PM ET
+- weekly heartbeat: Mondays around 9 AM ET
+
+One-time setup:
+
+1. Create a GitHub token: <https://github.com/settings/personal-access-tokens/new>
+   - Token name: `crewsync-timer`; Expiration: 1 year (set a reminder to renew)
+   - Repository access: **Only select repositories** → `scheck93/crewsync`
+   - Permissions → Repository permissions → **Actions: Read and write**
+   - **Generate token** and copy it.
+2. In Apps Script: Project Settings → Script properties → add `GITHUB_TOKEN`
+   with the token as the value.
+3. In the editor, pick `setupGitHubTimers` and **Run**. It starts the timers
+   and kicks off one calendar sync right away (you'll see it in GitHub's
+   Actions tab within a minute).

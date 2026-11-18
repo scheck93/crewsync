@@ -104,14 +104,14 @@ jobs:
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
       - name: Build site
-        if: steps.save.outputs.changed == 'true' || github.event_name != 'schedule'
+        if: steps.save.outputs.changed == 'true' || github.event_name == 'push' || inputs.init_snapshot
         run: python3 build_site.py --out _site
 
       - uses: actions/upload-pages-artifact@v3
-        if: steps.save.outputs.changed == 'true' || github.event_name != 'schedule'
+        if: steps.save.outputs.changed == 'true' || github.event_name == 'push' || inputs.init_snapshot
         with:
           path: _site
 
       - id: deploy
-        if: steps.save.outputs.changed == 'true' || github.event_name != 'schedule'
+        if: steps.save.outputs.changed == 'true' || github.event_name == 'push' || inputs.init_snapshot
         uses: actions/deploy-pages@v4

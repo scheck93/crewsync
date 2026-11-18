@@ -37,12 +37,15 @@ def gh_get(path):
 
 
 def scheduled_runs(since):
+    """Automatic calendar checks: GitHub's own schedule, or the Apps Script
+    timer that starts the workflow (shows up as workflow_dispatch)."""
     runs, page = [], 1
     while True:
-        data = gh_get(f"/actions/workflows/{WORKFLOW}/runs?event=schedule"
-                      f"&created=%3E%3D{since:%Y-%m-%dT%H:%M:%SZ}&per_page=100&page={page}")
-        runs += data.get("workflow_runs", [])
-        if len(data.get("workflow_runs", [])) < 100:
+        data = gh_get(f"/actions/workflows/{WORKFLOW}/runs"
+                      f"?created=%3E%3D{since:%Y-%m-%dT%H:%M:%SZ}&per_page=100&page={page}")
+        batch = data.get("workflow_runs", [])
+        runs += [r for r in batch if r.get("event") in ("schedule", "workflow_dispatch")]
+        if len(batch) < 100:
             return runs
         page += 1
 
