@@ -11,6 +11,10 @@ You paste the one you like into the Airbnb chat.
 - If it doesn't, you get 2–3 options (e.g. yes / no / let me check), with
   `[placeholders]` for anything it doesn't know, plus a note on what to add
   to the playbook.
+- When a guest says they've checked out, the email also has a **Text
+  Brittany** button (and **Text someone else**, for a backup cleaner). It
+  opens your Messages app with "the guests just checked out, next check-in is
+  ..." filled in; you tap Send.
 - It never messages the guest. It only emails you.
 
 Claude's knowledge comes from the **CrewSync Cabin Playbook** Google Doc
@@ -27,7 +31,12 @@ draft reads the latest version.
    **Add script property**:
    - Property: `ANTHROPIC_API_KEY`
    - Value: your Anthropic API key
-   Save.
+
+   And for the checkout "Text cleaner" button:
+   - `CLEANER_NAME`: e.g. `Brittany`
+   - `CLEANER_PHONE`: e.g. `+15185551234`
+
+   Save. (These stay in your Google account, not in this public repo.)
 4. Back in the **Editor**, choose `setup` in the function dropdown at the top
    and click **Run**. Google asks for permission (read Gmail, send email as
    you, read the playbook Doc, connect to the Anthropic API). Click through
