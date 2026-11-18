@@ -1,0 +1,33 @@
+name: Weekly heartbeat
+
+on:
+  schedule:
+    # Mondays 13:41 UTC = 8:41 AM EST / 9:41 AM EDT.
+    - cron: "41 13 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (print the report, send nothing)"
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Text the owner a health report
+        env:
+          CREWSYNC_PRIVATE: ${{ secrets.CREWSYNC_PRIVATE }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python3 heartbeat.py --dry-run
+          else
+            python3 heartbeat.py
+          fi

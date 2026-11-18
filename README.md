@@ -38,6 +38,7 @@ crewsync/
 ├── run_all.py               # runs every client under clients/
 ├── build_site.py            # builds the GitHub Pages site into _site/
 ├── send_message.py          # ad-hoc one-off sends (intros, announcements)
+├── heartbeat.py             # weekly "still running" text to the owner
 ├── run.sh                   # local helper: loads .env, runs the engine
 ├── clients/
 │   └── david-cozy-cabin/
@@ -81,6 +82,11 @@ This repo is public, so anything sensitive stays out of it:
 
 From then on it runs every 30 minutes by itself. If a run fails (e.g. a
 calendar link was rotated), GitHub emails you.
+
+**Weekly heartbeat:** every Monday morning the owner gets a text like
+"CrewSync weekly check: running normally. 331 calendar checks in the last 7
+days, 0 failed." If that text stops showing up, something is wrong. Test it
+any time from *Actions → Weekly heartbeat → Run workflow*.
 
 > **Twilio + links:** US carriers filter texts with links unless your
 > Twilio A2P 10DLC campaign says messages include embedded links. If crew
