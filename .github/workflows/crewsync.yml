@@ -2,8 +2,9 @@ name: CrewSync
 
 on:
   schedule:
-    # Every 30 minutes (UTC). GitHub may start scheduled runs a few minutes late.
-    - cron: "*/30 * * * *"
+    # Every 30 minutes, at :07 and :37. Off the top/bottom of the hour on
+    # purpose: GitHub delays or drops scheduled runs at :00 and :30 under load.
+    - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
