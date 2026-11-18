@@ -7,4 +7,5 @@ AIRBNB | 1418fb94e984-520bbdf693c0bc66c8bc677deb6131c7@airbnb.com | 2026-11-20 |
 AIRBNB | 1418fb94e984-c419b78305a5ca7e1e92181463c5cf80@airbnb.com | 2026-11-23 | 2026-11-26 | Reserved
 VRBO   | 8d1b6a50-31fc-414c-b923-6fa429536f05                    | 2026-11-27 | 2026-11-29 | Reserved - Nascha
 AIRBNB | 1418fb94e984-eefa877b41cf69611985cd6a8cbfc89a@airbnb.com | 2026-12-04 | 2026-12-06 | Reserved
+VRBO   | c9be9a8f-0381-486c-a8c9-9df1d74a9a59                    | 2027-01-04 | 2027-01-06 | Reserved - Joe
 VRBO   | 05b64232-3946-420d-bda2-17d4e0f34ac7                    | 2027-05-02 | 2027-05-08 | Reserved - Donna
