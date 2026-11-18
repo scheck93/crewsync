@@ -82,9 +82,13 @@ def main():
         sys.exit(1)
 
     print(f"Sending to {len(recipients)} recipient(s): {recipients}")
+    failed = 0
     for to in recipients:
         sid, status = send_sms(cfg, to, body, dry_run=args.dry_run)
         print(f"  {to}: {sid} ({status})")
+        failed += sid is None
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

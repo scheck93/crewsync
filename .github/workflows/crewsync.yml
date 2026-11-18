@@ -14,6 +14,19 @@ on:
         description: "Reset snapshot to the current calendars (send nothing). Use once before going live."
         type: boolean
         default: false
+      message:
+        description: "One-off text to send instead of checking calendars (leave blank for a normal run)"
+        type: string
+        default: ""
+      message_to:
+        description: "Who gets the one-off text"
+        type: choice
+        options: [all, crew, owner]
+        default: all
+      client:
+        description: "Client folder for the one-off text"
+        type: string
+        default: david-cozy-cabin
   push:
     branches: [main]
     paths:
@@ -41,9 +54,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Send one-off message
+        if: github.event_name == 'workflow_dispatch' && inputs.message != ''
+        env:
+          CREWSYNC_PRIVATE: ${{ secrets.CREWSYNC_PRIVATE }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          MESSAGE: ${{ inputs.message }}
+          MESSAGE_TO: ${{ inputs.message_to }}
+          CLIENT: ${{ inputs.client }}
+        run: |
+          # Inputs come in through env vars, never pasted into the script.
+          if [ "${{ inputs.dry_run }}" = "true" ]; then DRY=--dry-run; else DRY=; fi
+          python3 send_message.py "clients/$CLIENT/config.json" --to "$MESSAGE_TO" --body "$MESSAGE" $DRY
+
       - name: Check calendars and text the crew
         # Only on the schedule or a manual run; a code push just redeploys the site.
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' && (github.event_name != 'workflow_dispatch' || inputs.message == '')
         env:
           CREWSYNC_PRIVATE: ${{ secrets.CREWSYNC_PRIVATE }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
