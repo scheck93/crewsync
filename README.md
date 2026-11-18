@@ -39,6 +39,7 @@ crewsync/
 ├── build_site.py            # builds the GitHub Pages site into _site/
 ├── send_message.py          # ad-hoc one-off sends (intros, announcements)
 ├── heartbeat.py             # weekly "still running" text to the owner
+├── extend_offers.py         # daily "invite today's guest to stay longer" text to the owner
 ├── guest-replies/           # Gmail -> Claude suggested replies to Airbnb guests (Apps Script)
 ├── run.sh                   # local helper: loads .env, runs the engine
 ├── clients/
@@ -83,6 +84,13 @@ This repo is public, so anything sensitive stays out of it:
 
 From then on it runs every 30 minutes by itself. If a run fails (e.g. a
 calendar link was rotated), GitHub emails you.
+
+**Extend-stay offers:** every afternoon (about 4-5 PM ET), for each guest
+who checked in today on a 1-5 night stay with the cabin open the night after
+checkout, the owner gets a text with a ready-to-copy "stay longer at a
+discount" message to send the guest in Airbnb/VRBO. Each booking is offered
+once (`clients/<name>/offers_sent.txt`). Tune it per client in `config.json`:
+`"extension_offers": {"enabled": true, "min_nights": 1, "max_nights": 5}`.
 
 **Weekly heartbeat:** every Monday morning the owner gets a text like
 "CrewSync weekly check: running normally. 331 calendar checks in the last 7

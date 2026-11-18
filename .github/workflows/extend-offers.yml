@@ -1,0 +1,44 @@
+name: Extend-stay offers
+
+on:
+  schedule:
+    # Daily 21:13 UTC = 4:13 PM EST / 5:13 PM EDT, after guests have checked in.
+    - cron: "13 21 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (print the texts, send nothing, save nothing)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # remember which bookings were already offered
+
+concurrency:
+  group: crewsync   # same group as the calendar sync, so commits never collide
+  cancel-in-progress: false
+
+jobs:
+  offers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Text the owner about extend-stay chances
+        env:
+          CREWSYNC_PRIVATE: ${{ secrets.CREWSYNC_PRIVATE }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python3 extend_offers.py --dry-run
+          else
+            python3 extend_offers.py
+          fi
+      - name: Save which bookings were offered
+        run: |
+          if [ -n "$(git status --porcelain clients)" ]; then
+            git config user.name "crewsync-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add clients
+            git commit -m "Record extend-stay offers sent"
+            git push
+          fi
