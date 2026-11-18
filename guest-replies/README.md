@@ -6,7 +6,7 @@ message needs an answer, and if it does, sends **you** an email in the same
 Gmail conversation with suggested replies and a **Copy** button for each.
 You paste the one you like into the Airbnb chat.
 
-- Messages like "thanks!" or "we checked out" are skipped. No email.
+- Bare reactions and "ok / sounds good" acknowledgments are skipped. Checkout and thank-you notes get a short goodbye reply in your style.
 - If your playbook has the answer, you get one reply.
 - If it doesn't, you get 2–3 options (e.g. yes / no / let me check), with
   `[placeholders]` for anything it doesn't know, plus a note on what to add
